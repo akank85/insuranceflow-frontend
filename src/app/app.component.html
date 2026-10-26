@@ -1,0 +1,391 @@
+
+<div class="app-shell">
+  <aside class="sidebar" *ngIf="loggedIn">
+    <div class="brand">
+      <div class="brand-mark">i</div>
+      <div><strong>InsureFlow</strong><small>SECURE PORTAL</small></div>
+    </div>
+
+    <div class="nav-label">WORKSPACE</div>
+
+    <button class="nav-item" [class.active]="section==='overview'" (click)="showSection('overview')">▦ &nbsp; Overview</button>
+    <button class="nav-item" *ngIf="isAdmin" [class.active]="section==='users'" (click)="showSection('users')">♙ &nbsp; User management</button>
+    <button class="nav-item" *ngIf="isAdmin" [class.active]="section==='create-agent'" (click)="showSection('create-agent')">＋ &nbsp; Create agent</button>
+    <button class="nav-item" *ngIf="isAgent" [class.active]="section==='create-customer'" (click)="showSection('create-customer')">＋ &nbsp; Create customer</button>
+    <button class="nav-item" *ngIf="isAdmin" [class.active]="section==='audit'" (click)="showSection('audit')">◷ &nbsp; Audit logs</button>
+
+    <div class="sidebar-bottom">
+      <div class="secure-note">
+        <span class="secure-dot"></span>
+        <div><b>Secure connection</b><small>Identity protected</small></div>
+      </div>
+      <button class="nav-item logout" (click)="logout()">↪ &nbsp; Sign out</button>
+    </div>
+  </aside>
+
+  <main class="main-area">
+    <header class="topbar">
+      <div class="brand mobile-brand">
+        <div class="brand-mark">i</div><strong>InsureFlow</strong>
+      </div>
+      <div class="crumb" *ngIf="loggedIn">
+        Portal <span>/</span>
+        {{ section === 'overview' ? 'Overview' :
+           section === 'users' ? 'User management' :
+           section === 'create-agent' ? 'Create agent' :
+           section === 'create-customer' ? 'Create customer' : 'Audit logs' }}
+      </div>
+      <div class="top-actions">
+        <span class="status-pill"><i></i> System online</span>
+        <div class="avatar" *ngIf="loggedIn">{{ (currentUser || 'U').charAt(0).toUpperCase() }}</div>
+        <span class="top-user" *ngIf="loggedIn">{{ currentUser }}<small>{{ currentRole }}</small></span>
+      </div>
+    </header>
+
+    <!-- LOGIN AND REGISTRATION -->
+    <section class="auth-layout" *ngIf="!loggedIn">
+      <div class="hero-panel">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+          <div class="eyebrow"><span></span> YOUR SECURITY, OUR PRIORITY</div>
+          <h1>Protection begins<br>with <em>trust.</em></h1>
+          <p>A secure gateway to your insurance workspace. Manage access confidently, with your information protected at every step.</p>
+          <div class="hero-features">
+            <div><span class="feature-icon">✓</span><span><b>Secure access</b><small>Protected authentication</small></span></div>
+            <div><span class="feature-icon">⌁</span><span><b>One trusted portal</b><small>Your account, in one place</small></span></div>
+          </div>
+          <div class="hero-footer">INSUREFLOW <span>•</span> BUILT AROUND YOU</div>
+        </div>
+        <div class="orb orb-one"></div>
+        <div class="orb orb-two"></div>
+      </div>
+
+      <div class="auth-panel">
+        <div class="auth-card">
+
+          <!-- CUSTOMER ACTIVATION -->
+          <ng-container *ngIf="customerSetupMode; else normalAuth">
+            <div class="mobile-eyebrow">INSUREFLOW CUSTOMER ACTIVATION</div>
+            <div class="form-kicker">CUSTOMER SETUP</div>
+            <h2>Activate your account</h2>
+            <p class="subheading">Verify the email address provided by your insurance agent and set your password.</p>
+
+            <form (ngSubmit)="sendCustomerSetupOtp()" #setupOtpNgForm="ngForm">
+              <label for="setupEmail">Email address</label>
+              <input id="setupEmail" name="setupEmail" [(ngModel)]="setupEmail"
+                     type="email" placeholder="you@example.com" required maxlength="150"
+                     [disabled]="otpSent">
+              <button class="primary-btn" type="submit" [disabled]="busy || !setupOtpNgForm.form.valid || otpSent">
+                {{ busy ? 'Sending…' : otpSent ? 'OTP sent' : 'Send OTP' }} <span>→</span>
+              </button>
+            </form>
+
+            <form *ngIf="otpSent && !activationToken" (ngSubmit)="verifyCustomerSetupOtp()" #setupVerifyNgForm="ngForm">
+              <label for="setupOtp">6-digit email OTP</label>
+              <input id="setupOtp" name="setupOtp" [(ngModel)]="setupOtp"
+                     placeholder="Enter OTP" inputmode="numeric" required
+                     pattern="[0-9]{6}" maxlength="6">
+              <button class="primary-btn" type="submit"
+                      [disabled]="busy || !setupVerifyNgForm.form.valid">
+                Verify OTP <span>→</span>
+              </button>
+            </form>
+
+            <form *ngIf="activationToken" (ngSubmit)="setCustomerPassword()" #setPasswordNgForm="ngForm">
+              <label for="newPassword">Create password</label>
+              <input id="newPassword" name="newPassword" [(ngModel)]="setPasswordForm.password"
+                     type="password" placeholder="At least 8 characters" required
+                     minlength="8" maxlength="72" autocomplete="new-password">
+
+              <label for="confirmPassword">Confirm password</label>
+              <input id="confirmPassword" name="confirmPassword"
+                     [(ngModel)]="setPasswordForm.confirmPassword"
+                     type="password" placeholder="Enter password again" required
+                     minlength="8" maxlength="72" autocomplete="new-password">
+
+              <button class="primary-btn" type="submit"
+                      [disabled]="busy || !setPasswordNgForm.form.valid ||
+                      setPasswordForm.password !== setPasswordForm.confirmPassword">
+                {{ busy ? 'Saving…' : 'Set password' }} <span>→</span>
+              </button>
+            </form>
+
+            <p class="switch-copy">
+              Already activated?
+              <button type="button" (click)="openCustomerSetup(); customerSetupMode=false; setMode('login')">Sign in</button>
+            </p>
+            <p class="switch-copy">
+              <button type="button" (click)="customerSetupMode=false">Back to portal</button>
+            </p>
+          </ng-container>
+
+          <ng-template #normalAuth>
+            <ng-container *ngIf="mode==='login'; else registerPanel">
+              <div class="form-kicker">WELCOME BACK</div>
+              <h2>Sign in to your account</h2>
+              <p class="subheading">Enter your credentials to continue to your workspace.</p>
+
+              <form (ngSubmit)="login()" #loginNgForm="ngForm">
+                <label for="loginId">Username or email</label>
+                <input id="loginId" name="usernameOrEmail"
+                       [(ngModel)]="loginForm.usernameOrEmail"
+                       placeholder="you@example.com" autocomplete="username"
+                       required maxlength="100">
+
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" name="password"
+                       [(ngModel)]="loginForm.password" type="password"
+                       placeholder="Enter your password" autocomplete="current-password"
+                       required maxlength="72">
+
+                <button class="primary-btn" type="submit"
+                        [disabled]="busy || !loginNgForm.form.valid">
+                  {{ busy ? 'Signing in…' : 'Sign in' }} <span>→</span>
+                </button>
+              </form>
+
+              <div class="or-divider"><span></span> OR CONTINUE WITH <span></span></div>
+              <button class="github-btn" type="button" (click)="githubLogin()">
+                <b class="github-mark">●</b> Continue with GitHub
+              </button>
+
+              <p class="switch-copy">
+                New to InsureFlow?
+                <button type="button" (click)="setMode('register')">Create an account</button>
+              </p>
+              <p class="switch-copy">
+                Created by an agent?
+                <button type="button" (click)="openCustomerSetup()">Activate customer account</button>
+              </p>
+            </ng-container>
+
+            <ng-template #registerPanel>
+              <div class="form-kicker">GET STARTED</div>
+              <h2>Create your account</h2>
+              <p class="subheading">Register as a customer with a verified email address.</p>
+
+              <form (ngSubmit)="register()" #registerNgForm="ngForm">
+                <label for="regName">Username</label>
+                <input id="regName" name="username" [(ngModel)]="registerForm.username"
+                       placeholder="Choose a username" required minlength="3" maxlength="100">
+
+                <label for="regEmail">Email address</label>
+                <div class="input-action">
+                  <input id="regEmail" name="email" [(ngModel)]="registerForm.email"
+                         type="email" placeholder="you@example.com" required maxlength="150"
+                         (ngModelChange)="otpVerified=false; otpSent=false">
+                  <button type="button" class="inline-btn" (click)="sendOtp()"
+                          [disabled]="busy || !registerForm.email">Send OTP</button>
+                </div>
+
+                <div class="otp-area" *ngIf="otpSent">
+                  <label for="otpCode">6-digit email OTP</label>
+                  <div class="input-action">
+                    <input id="otpCode" name="otp" [(ngModel)]="otp"
+                           placeholder="Enter OTP" inputmode="numeric" maxlength="6">
+                    <button type="button" class="inline-btn" (click)="verifyOtp()"
+                            [disabled]="busy || otp.length!==6 || otpVerified">
+                      {{ otpVerified ? 'Verified ✓' : 'Verify' }}
+                    </button>
+                  </div>
+                </div>
+
+                <label for="regMobile">Mobile number</label>
+                <input id="regMobile" name="mobile" [(ngModel)]="registerForm.mobile"
+                       placeholder="10-digit mobile number" required minlength="10" maxlength="20">
+
+                <label for="regPassword">Password</label>
+                <input id="regPassword" name="password" [(ngModel)]="registerForm.password"
+                       type="password" placeholder="At least 8 characters"
+                       required minlength="8" maxlength="72">
+
+                <button class="primary-btn" type="submit"
+                        [disabled]="busy || !registerNgForm.form.valid || !otpVerified">
+                  {{ busy ? 'Creating account…' : 'Create account' }} <span>→</span>
+                </button>
+              </form>
+
+              <p class="switch-copy">
+                Already registered?
+                <button type="button" (click)="setMode('login')">Sign in</button>
+              </p>
+            </ng-template>
+          </ng-template>
+
+          <div class="notice success" *ngIf="message">✓ {{ message }}</div>
+          <div class="notice error" *ngIf="error">! {{ error }}</div>
+          <div class="auth-legal"><span>🔒 Your information is protected</span><span>Privacy-first access</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTHENTICATED DASHBOARD -->
+    <section class="dashboard" *ngIf="loggedIn">
+      <div class="welcome-row">
+        <div>
+          <div class="form-kicker">INSUREFLOW WORKSPACE</div>
+          <h1>
+            {{ section === 'overview' ? 'Welcome back, ' + currentUser :
+               section === 'users' ? 'User management' :
+               section === 'create-agent' ? 'Create an agent account' :
+               section === 'create-customer' ? 'Create a customer account' : 'Audit activity' }}
+            <span *ngIf="section==='overview'">.</span>
+          </h1>
+          <p>
+            {{ section === 'overview' ? 'Here is your secure access overview for today.' :
+               section === 'users' ? 'View accounts and maintain user access.' :
+               section === 'create-agent' ? 'Provision an authorized agent login.' :
+               section === 'create-customer' ? 'Create a customer account and send an activation OTP.' :
+               'Review recorded activity available to your role.' }}
+          </p>
+        </div>
+        <div class="date-chip">● &nbsp; AUTHENTICATED SESSION</div>
+      </div>
+
+      <div class="notice success" *ngIf="message">✓ {{ message }}</div>
+      <div class="notice error" *ngIf="error">! {{ error }}</div>
+
+      <!-- OVERVIEW -->
+      <ng-container *ngIf="section==='overview'">
+        <div class="stat-grid">
+          <article class="stat-card">
+            <div class="stat-top"><span>ACCOUNT</span><span class="stat-icon blue">♙</span></div>
+            <h3>{{ currentUser }}</h3><p>Signed-in identity</p>
+          </article>
+          <article class="stat-card">
+            <div class="stat-top"><span>ACCESS ROLE</span><span class="stat-icon purple">◇</span></div>
+            <h3>{{ currentRole || 'User' }}</h3><p>Assigned permissions</p>
+          </article>
+          <article class="stat-card">
+            <div class="stat-top"><span>SESSION</span><span class="stat-icon green">✓</span></div>
+            <h3>Active</h3><p>Authenticated in this browser</p>
+          </article>
+        </div>
+
+        <div class="content-grid">
+          <article class="panel">
+            <div class="panel-heading"><div><h3>Quick actions</h3><p>Common tasks for your account</p></div></div>
+            <button class="action-row" (click)="refresh()"><span class="action-symbol">↻</span><span><b>Refresh session</b><small>Request a new access token</small></span><strong>→</strong></button>
+            <button class="action-row" *ngIf="isAdmin" (click)="showSection('users')"><span class="action-symbol">♙</span><span><b>Manage users</b><small>Review accounts and access roles</small></span><strong>→</strong></button>
+            <button class="action-row" *ngIf="isAdmin" (click)="showSection('create-agent')"><span class="action-symbol">＋</span><span><b>Create agent</b><small>Add an agent login account</small></span><strong>→</strong></button>
+            <button class="action-row" *ngIf="isAgent" (click)="showSection('create-customer')"><span class="action-symbol">＋</span><span><b>Create customer</b><small>Register a customer for activation</small></span><strong>→</strong></button>
+            <button class="action-row" *ngIf="isAdmin" (click)="showSection('audit')"><span class="action-symbol">◷</span><span><b>View audit logs</b><small>Review recorded activity</small></span><strong>→</strong></button>
+          </article>
+
+          <article class="panel security-panel">
+            <div class="shield-art">✓</div>
+            <div class="form-kicker">SECURITY STATUS</div>
+            <h3>Your session is protected</h3>
+            <p>Your requests use the access token issued by the authentication service. Keep your credentials private and sign out on shared devices.</p>
+            <div class="security-line"><span></span> Token-based access enabled</div>
+            <button class="text-btn" (click)="logout()">Sign out securely ↗</button>
+          </article>
+        </div>
+      </ng-container>
+
+      <!-- ADMIN: USER MANAGEMENT -->
+      <ng-container *ngIf="section==='users'">
+        <article class="panel table-panel">
+          <div class="panel-heading">
+            <div><h3>All users</h3><p>{{ users.length }} account(s) returned by the server</p></div>
+            <button class="small-primary" (click)="showSection('create-agent')">＋ Create agent</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>USER</th><th>EMAIL</th><th>MOBILE</th><th>ROLE</th><th>STATUS</th><th>ACTION</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let u of users">
+                  <td><div class="user-cell"><span class="mini-avatar">{{ (u.username || '?').charAt(0).toUpperCase() }}</span><span><b>{{ u.username }}</b><small>#{{ u.userId }}</small></span></div></td>
+                  <td>{{ u.email || '—' }}</td><td>{{ u.mobile || '—' }}</td>
+                  <td><span class="role-pill">{{ u.roleName || '—' }}</span></td>
+                  <td><span class="status-text" [class.inactive]="u.status!=='Active'">● {{ u.status || 'Unknown' }}</span></td>
+                  <td><button class="table-action" (click)="chooseUser(u)">Edit</button></td>
+                </tr>
+                <tr *ngIf="!users.length"><td colspan="6" class="empty-state">No user records returned.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="panel edit-panel" *ngIf="selectedUser">
+          <div class="panel-heading"><div><h3>Update {{ selectedUser.username }}</h3><p>Change account status or role</p></div><button class="close-btn" (click)="selectedUser=null">×</button></div>
+          <form class="edit-form" (ngSubmit)="updateUser()">
+            <div><label>Status</label><select name="status" [(ngModel)]="editForm.status"><option>Active</option><option>Inactive</option><option>Locked</option></select></div>
+            <div><label>Role name</label><input name="roleName" [(ngModel)]="editForm.roleName" maxlength="50" required></div>
+            <button class="primary-btn" type="submit" [disabled]="busy">Save changes →</button>
+          </form>
+        </article>
+      </ng-container>
+
+      <!-- ADMIN: CREATE AGENT -->
+      <ng-container *ngIf="section==='create-agent'">
+        <article class="panel form-panel">
+          <div class="panel-heading"><div><h3>Agent details</h3><p>Enter the information required to create an agent login.</p></div><span class="role-pill">AGENT</span></div>
+          <form class="agent-form" (ngSubmit)="createAgent()" #agentNgForm="ngForm">
+            <div class="form-grid">
+              <div><label>Username</label><input name="agentUsername" [(ngModel)]="agentForm.username" required maxlength="100" placeholder="Agent username"></div>
+              <div><label>Email address</label><input name="agentEmail" [(ngModel)]="agentForm.email" type="email" required maxlength="150" placeholder="agent@example.com"></div>
+              <div><label>Mobile number</label><input name="agentMobile" [(ngModel)]="agentForm.mobile" required pattern="[0-9]{10,15}" placeholder="10–15 digits"></div>
+              <div><label>Temporary password</label><input name="agentPassword" [(ngModel)]="agentForm.password" type="password" required minlength="8" maxlength="72" placeholder="At least 8 characters"></div>
+            </div>
+            <div class="form-foot"><p>Agent access is managed by your backend's role-based security rules.</p><button class="primary-btn" type="submit" [disabled]="busy || !agentNgForm.form.valid">{{ busy ? 'Creating…' : 'Create agent account →' }}</button></div>
+          </form>
+        </article>
+      </ng-container>
+
+      <!-- AGENT: CREATE CUSTOMER -->
+      <ng-container *ngIf="section==='create-customer'">
+        <article class="panel form-panel">
+          <div class="panel-heading">
+            <div><h3>Customer details</h3><p>Create the account without assigning a password. The customer will set their own password after email verification.</p></div>
+            <span class="role-pill">CUSTOMER</span>
+          </div>
+
+          <form class="agent-form" (ngSubmit)="createCustomer()" #customerNgForm="ngForm">
+            <div class="form-grid">
+              <div>
+                <label for="customerUsername">Username</label>
+                <input id="customerUsername" name="customerUsername" [(ngModel)]="customerForm.username"
+                       required minlength="3" maxlength="100" placeholder="Customer username">
+              </div>
+              <div>
+                <label for="customerEmail">Email address</label>
+                <input id="customerEmail" name="customerEmail" [(ngModel)]="customerForm.email"
+                       type="email" required maxlength="150" placeholder="customer@example.com">
+              </div>
+              <div>
+                <label for="customerMobile">Mobile number</label>
+                <input id="customerMobile" name="customerMobile" [(ngModel)]="customerForm.mobile"
+                       required pattern="[0-9]{10,15}" maxlength="15" placeholder="10–15 digits">
+              </div>
+            </div>
+            <div class="form-foot">
+              <p>The customer must verify their email and set a password before signing in.</p>
+              <button class="primary-btn" type="submit" [disabled]="busy || !customerNgForm.form.valid">
+                {{ busy ? 'Creating customer…' : 'Create customer →' }}
+              </button>
+            </div>
+          </form>
+        </article>
+      </ng-container>
+
+      <!-- ADMIN: AUDIT LOGS -->
+      <ng-container *ngIf="section==='audit'">
+        <article class="panel table-panel">
+          <div class="panel-heading"><div><h3>Audit logs</h3><p>Activity records provided by the audit API</p></div><button class="small-primary" (click)="loadAudit()">↻ Refresh</button></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>RECORD</th><th>DETAILS</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let log of auditLogs"><td><b>{{ log['id'] || log['auditId'] || 'Event' }}</b></td><td><pre>{{ log | json }}</pre></td></tr>
+                <tr *ngIf="!auditLogs.length"><td colspan="2" class="empty-state">No audit records returned.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </ng-container>
+
+      <footer class="page-footer">© 2026 InsureFlow <span>Secure identity management</span></footer>
+    </section>
+  </main>
+</div>
